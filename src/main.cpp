@@ -1,6 +1,7 @@
 #include "DatabaseManager.h"
 #include <iostream>
 #include <cstdlib>
+#include <memory>
 
 static std::string connStringFromEnv() {
     const char* envConn = std::getenv("DB_CONN_STRING");
@@ -21,27 +22,38 @@ static void demoQuery(DatabaseManager& db, int id) {
 }
 
 int main() {
-    // Cache capacity 2 -> demonstrates eviction with only three inserted records.
-    DatabaseManager dbEngine(connStringFromEnv(), /*cache_capacity=*/2);
+    // Constructing DatabaseManager can throw if PostgreSQL is unreachable
+    // (e.g. pqxx::broken_connection) -- that's the one failure this
+    // engine can't recover from on its own, so it's caught here at the
+    // top level with a clear, intentional error message instead of
+    // letting the process crash with an unhandled-exception abort.
+    std::unique_ptr<DatabaseManager> dbEngine;
+    try {
+        // Cache capacity 2 -> demonstrates eviction with only three inserted records.
+        dbEngine = std::make_unique<DatabaseManager>(connStringFromEnv(), /*cache_capacity=*/2);
+    } catch (const std::exception& e) {
+        std::cerr << "Fatal: could not connect to PostgreSQL at startup: " << e.what() << "\n";
+        return 1;
+    }
 
     std::cout << "\n--- Inserting Records ---\n";
-    dbEngine.insertRecord(101, "Isha Gupta", 15000.0);
-    dbEngine.insertRecord(102, "Alex Smith", 8200.5);
+    dbEngine->insertRecord(101, "Isha Gupta", 15000.0);
+    dbEngine->insertRecord(102, "Alex Smith", 8200.5);
     std::cout << "Inserted 101, 102 (write-through: Postgres + cache)\n";
 
     std::cout << "\n--- Querying Records ---\n";
-    demoQuery(dbEngine, 101); // cache hit (101 is MRU)
+    demoQuery(*dbEngine, 101); // cache hit (101 is MRU)
 
     std::cout << "\n--- Adding 3rd Record (Triggers LRU Eviction) ---\n";
-    dbEngine.insertRecord(103, "Charlie Davis", 3400.0); // capacity 2 full -> 102 evicted (101 was MRU)
+    dbEngine->insertRecord(103, "Charlie Davis", 3400.0); // capacity 2 full -> 102 evicted (101 was MRU)
     std::cout << "Inserted 103 -> capacity (2) exceeded, LRU entry (102) evicted from cache\n";
 
     std::cout << "\n--- Verifying Eviction & Fallback ---\n";
-    demoQuery(dbEngine, 101); // still cached
-    demoQuery(dbEngine, 102); // cache miss -> Postgres fallback -> re-cached
-    demoQuery(dbEngine, 102); // now cached again
+    demoQuery(*dbEngine, 101); // still cached
+    demoQuery(*dbEngine, 102); // cache miss -> Postgres fallback -> re-cached
+    demoQuery(*dbEngine, 102); // now cached again
 
-    CacheStats stats = dbEngine.cacheStats();
+    CacheStats stats = dbEngine->cacheStats();
     std::cout << "\n--- Cache Stats ---\n"
               << "hits=" << stats.hits
               << " misses=" << stats.misses
