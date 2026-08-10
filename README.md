@@ -55,7 +55,7 @@ The `std::list::splice` call is the key trick: moving an already-owned
 node to the front of the list is a pointer relink, not a copy — so
 "promote to most-recently-used" costs O(1) regardless of cache size.
 
-## Concurrency model — and its honest limit
+## Concurrency model — and its limit
 
 Two independent locks exist in this codebase, protecting two different
 things:
