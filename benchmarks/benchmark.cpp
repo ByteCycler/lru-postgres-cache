@@ -34,9 +34,7 @@ static std::string connStringFromEnv() {
         : "host=localhost port=5432 dbname=postgres user=postgres password=password";
 }
 
-// ---------------------------------------------------------------------
 // Part 1: raw LRUCache get/put latency, single-threaded.
-// ---------------------------------------------------------------------
 static void benchmarkPureCache() {
     constexpr int kCapacity = 10'000;
     constexpr int kOps = 500'000;
@@ -58,9 +56,7 @@ static void benchmarkPureCache() {
               << std::setprecision(3) << (elapsedMs * 1000.0 / kOps) << " us/op avg\n";
 }
 
-// ---------------------------------------------------------------------
 // Part 2: cache hit vs. Postgres fallback latency, via DatabaseManager.
-// ---------------------------------------------------------------------
 static void benchmarkCacheVsDb() {
     try {
         DatabaseManager db(connStringFromEnv(), /*cache_capacity=*/100);
@@ -115,9 +111,7 @@ static void benchmarkCacheVsDb() {
     }
 }
 
-// ---------------------------------------------------------------------
 // Part 3: concurrent throughput with multiple reader/writer threads.
-// ---------------------------------------------------------------------
 static void benchmarkConcurrentCache() {
     constexpr int kCapacity = 1'000;
     constexpr int kThreads = 8;
