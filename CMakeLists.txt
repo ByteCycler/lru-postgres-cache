@@ -7,6 +7,15 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# ---- ThreadSanitizer ----
+# Build with: cmake -B build-tsan -DENABLE_TSAN=ON && cmake --build build-tsan
+# Then run:   ./build-tsan/run_tests
+option(ENABLE_TSAN "Build with ThreadSanitizer instrumentation" OFF)
+if(ENABLE_TSAN)
+    add_compile_options(-fsanitize=thread -g -O1)
+    add_link_options(-fsanitize=thread)
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(PQXX REQUIRED libpqxx)
 find_package(Threads REQUIRED)
